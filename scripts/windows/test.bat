@@ -6,28 +6,34 @@ echo Distributed Counter System Test Script
 echo ==================================
 echo.
 
+REM Ensure we run from repository root
+pushd "%~dp0\..\.."
+
 REM Base URLs for the three nodes
 set NODE1=http://localhost:8080
 set NODE2=http://localhost:8081
 set NODE3=http://localhost:8082
 
-REM Check if nodes are running
-echo Checking node health...
-curl -s %NODE1%/health
-curl -s %NODE2%/health
-curl -s %NODE3%/health
+REM Health readiness helper
+set MAX_RETRIES=15
+set RETRY_DELAY=2
+
+echo Checking node health and readiness...
+call :wait_for_node %NODE1% %MAX_RETRIES%
+call :wait_for_node %NODE2% %MAX_RETRIES%
+call :wait_for_node %NODE3% %MAX_RETRIES%
 echo.
 
 REM Test 1: Increment on different nodes
 echo Test 1: Increment counter on different nodes
 echo Incrementing by 5 at node1...
-curl -X POST %NODE1%/counter/increment -H "Content-Type: application/json" -d "{\"delta\": 5}"
+curl -s -X POST %NODE1%/counter/increment -H "Content-Type: application/json" -d "{\"delta\": 5}"
 echo.
 echo Incrementing by 3 at node2...
-curl -X POST %NODE2%/counter/increment -H "Content-Type: application/json" -d "{\"delta\": 3}"
+curl -s -X POST %NODE2%/counter/increment -H "Content-Type: application/json" -d "{\"delta\": 3}"
 echo.
 echo Incrementing by 2 at node3...
-curl -X POST %NODE3%/counter/increment -H "Content-Type: application/json" -d "{\"delta\": 2}"
+curl -s -X POST %NODE3%/counter/increment -H "Content-Type: application/json" -d "{\"delta\": 2}"
 echo.
 
 REM Wait for gossip to propagate
@@ -56,7 +62,7 @@ REM Test 4: Increment multiple times
 echo Test 4: Increment multiple times on single node
 for /L %%i in (1,1,3) do (
     echo Increment %%i...
-    curl -X POST %NODE1%/counter/increment -H "Content-Type: application/json" -d "{\"delta\": 1}"
+    curl -s -X POST %NODE1%/counter/increment -H "Content-Type: application/json" -d "{\"delta\": 1}"
     echo.
     timeout /t 1 /nobreak
 )
@@ -81,3 +87,28 @@ echo.
 
 echo Test completed!
 pause
+
+popd
+
+goto :eof
+
+:wait_for_node
+REM args: %1 = node url, %2 = max retries
+set NODEURL=%1
+set RETRIES=%2
+set /a i=0
+for /f "tokens=* delims=" %%S in ('cmd /c echo checking') do set dummy=%%S
+:wait_loop
+for /f "tokens=* delims=" %%S in ('curl -s -o NUL -w "%%{http_code}" %NODEURL%/health') do set CODE=%%S
+if "%CODE%"=="200" (
+    echo %NODEURL% is healthy.
+    goto :eof
+)
+set /a i+=1
+if %i% GEQ %RETRIES% (
+    echo %NODEURL% did not become healthy after %RETRIES% tries.
+    goto :eof
+)
+echo Waiting for %NODEURL% (%i%/%RETRIES%)...
+timeout /t %RETRY_DELAY% /nobreak
+goto wait_loop

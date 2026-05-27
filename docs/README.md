@@ -318,3 +318,21 @@ This is a educational project for a Distributed Systems course.
 ## Author
 
 Implemented as a course project for Distributed Systems (Sistem Terdistribusi).
+
+Ringkasan singkat, build dan jalankan (Windows)
+
+Lokasi penting:
+- `bin/` — berisi binary: `distributed-counter.exe`
+- `scripts/windows/` — berisi helper scripts: `build.bat`, `start-nodes.bat`, `test.bat`
+
+Contoh cepat (PowerShell dari root repo):
+
+```powershell
+.\n+cd "D:\Matkul Kuliah\Semester 6\Sistem Terdistribusi"
+.
+\scripts\windows\build.bat   # build binary ke bin\
+\scripts\windows\start-nodes.bat  # buka 3 jendela node
+\scripts\windows\test.bat   # jalankan test otomatis (menunggu readiness)
+```
+
+Catatan: semua skrip Windows otomatis berpindah ke root repo sehingga bisa dijalankan dari mana saja.
